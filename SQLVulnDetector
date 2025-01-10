@@ -1,0 +1,61 @@
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.PreparedStatement;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+public class SQLVulnDetector {
+
+    private static String dbUrl = "jdbc:mysql://localhost:3306/tu_base_de_datos";
+    private static String dbUser = "tu_usuario";
+    private static String dbPassword = "tu_contraseña";
+
+    public static void main(String[] args) {
+        List<String> queries = new ArrayList<>();
+        queries.add("SELECT * FROM usuarios WHERE nombre='admin' -- ' AND clave=''");
+        queries.add("SELECT * FROM usuarios WHERE nombre='admin' OR '1'='1'");
+        // Agrega más consultas aquí para probar
+
+        for (String query : queries) {
+            testQuery(query);
+        }
+    }
+
+    private static void testQuery(String query) {
+        if (isVulnerable(query)) {
+            String result = "Vulnerable: " + query;
+            System.out.println(result);
+            writeToFile(result);
+        } else {
+            String result = "No Vulnerable: " + query;
+            System.out.println(result);
+            writeToFile(result);
+        }
+    }
+
+    private static boolean isVulnerable(String query) {
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+            ResultSet rs = pstmt.executeQuery();
+            return rs.next();
+        } catch (Exception e) {
+            return true; // Considera vulnerable si hay una excepción
+        }
+    }
+
+    private static Connection getConnection() throws Exception {
+        return DriverManager.getConnection(dbUrl + "?useSSL=true&verifyServerCertificate=true", dbUser, dbPassword);
+    }
+
+    private static void writeToFile(String content) {
+        try (FileWriter writer = new FileWriter("resultados.txt", true)) {
+            writer.write(content + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
